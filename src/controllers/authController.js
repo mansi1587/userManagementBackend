@@ -1,3 +1,4 @@
+const crypto = require("crypto");
 const bcrypt = require("bcrypt");
 const pool = require("../config/db");
 const jwt = require("jsonwebtoken");
@@ -199,7 +200,162 @@ const loginUser = async (req, res) => {
   }
 };
 
+const forgotPassword = async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        data: null,
+        message: "Email is required",
+        errors: [],
+      });
+    }
+
+    const result = await pool.query(
+      "SELECT id, email FROM users WHERE email = $1",
+      [email]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        data: null,
+        message: "No account found with this email",
+        errors: [],
+      });
+    }
+
+    // Generate secure random token
+    const resetToken = crypto.randomBytes(32).toString("hex");
+
+    // Store only the hash in database
+    const tokenHash = crypto
+      .createHash("sha256")
+      .update(resetToken)
+      .digest("hex");
+
+    // Token expires after 1 hour
+    const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
+
+    await pool.query(
+      `UPDATE users
+       SET reset_password_token_hash = $1,
+           reset_password_token_expires_at = $2
+       WHERE id = $3`,
+      [tokenHash, expiresAt, result.rows[0].id]
+    );
+
+    // Simulate email delivery
+    const resetLink = `http://localhost:5173/reset-password?token=${resetToken}`;
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        resetLink,
+      },
+      message: "Password reset link generated successfully",
+      errors: [],
+    });
+  } catch (error) {
+    console.error("Forgot password error:", error);
+
+    return res.status(500).json({
+      success: false,
+      data: null,
+      message: "Failed to generate password reset link",
+      errors: [],
+    });
+  }
+};
+
+const resetPassword = async (req, res) => {
+  try {
+    const { token, newPassword } = req.body;
+
+    if (!token || !newPassword) {
+      return res.status(400).json({
+        success: false,
+        data: null,
+        message: "Token and new password are required",
+        errors: [],
+      });
+    }
+
+    // Validate password
+    const passwordRegex =
+      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z\d]).{8,}$/;
+
+    if (!passwordRegex.test(newPassword)) {
+      return res.status(400).json({
+        success: false,
+        data: null,
+        message:
+          "Password must be at least 8 characters and contain uppercase, lowercase, number and special character",
+        errors: [],
+      });
+    }
+
+    // Hash incoming token
+    const tokenHash = crypto
+      .createHash("sha256")
+      .update(token)
+      .digest("hex");
+
+    const result = await pool.query(
+      `SELECT id
+       FROM users
+       WHERE reset_password_token_hash = $1
+       AND reset_password_token_expires_at > NOW()`,
+      [tokenHash]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(400).json({
+        success: false,
+        data: null,
+        message: "Invalid or expired password reset link",
+        errors: [],
+      });
+    }
+
+    const userId = result.rows[0].id;
+
+    // Hash new password
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+    // Update password AND invalidate token
+    await pool.query(
+      `UPDATE users
+       SET password = $1,
+           reset_password_token_hash = NULL,
+           reset_password_token_expires_at = NULL
+       WHERE id = $2`,
+      [hashedPassword, userId]
+    );
+
+    return res.status(200).json({
+      success: true,
+      data: null,
+      message: "Password reset successfully",
+      errors: [],
+    });
+  } catch (error) {
+    console.error("Reset password error:", error);
+
+    return res.status(500).json({
+      success: false,
+      data: null,
+      message: "Failed to reset password",
+      errors: [],
+    });
+  }
+};
+
 module.exports = {
   registerUser,
-  loginUser
+  loginUser,
+  forgotPassword,
+  resetPassword
 };
