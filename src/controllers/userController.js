@@ -12,6 +12,7 @@ const getUsers = async (req, res) => {
         u.gender,
         u.zip,
         u.interests,
+        u.role,
         u.profile_picture,
         u.created_at,
         u.country_id,
@@ -143,6 +144,58 @@ const updateUser = async (req, res) => {
   }
 };
 
+const updateUserRole = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { role } = req.body;
+
+    if (!["Admin", "User"].includes(role)) {
+      return res.status(400).json({
+        success: false,
+        data: null,
+        message: "Invalid role",
+        errors: [],
+      });
+    }
+
+    const result = await pool.query(
+      `
+      UPDATE users
+      SET role = $1
+      WHERE id = $2
+      RETURNING id, first_name, last_name, email, role
+      `,
+      [role, id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        data: null,
+        message: "User not found",
+        errors: [],
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      data: result.rows[0],
+      message: "Role updated successfully",
+      errors: [],
+    });
+
+  } catch (error) {
+    console.error(error);
+
+    return res.status(500).json({
+      success: false,
+      data: null,
+      message: "Failed to update role",
+      errors: [],
+    });
+  }
+};
+
 const resetUserPassword = async (req, res) => {
   try {
     const { id } = req.params;
@@ -269,6 +322,7 @@ const deleteUser = async (req, res) => {
 module.exports = {
   getUsers,
   updateUser,
+  updateUserRole,
   resetUserPassword,
   deleteUser
 };

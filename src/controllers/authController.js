@@ -63,19 +63,21 @@ const registerUser = async (req, res) => {
         gender,
         email,
         password,
+        role,
         country_id,
         state_id,
         city_id,
         zip,
         interests
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
       RETURNING
         id,
         first_name,
         last_name,
         gender,
         email,
+        role,
         country_id,
         state_id,
         city_id,
@@ -88,6 +90,7 @@ const registerUser = async (req, res) => {
         gender,
         email,
         hashedPassword,
+        'User',
         country,
         state,
         city,
@@ -130,7 +133,7 @@ const loginUser = async (req, res) => {
 
     // Find user by email
     const result = await pool.query(
-      `SELECT id, first_name, last_name, email, password
+      `SELECT id, first_name, last_name, email, password, role
        FROM users
        WHERE email = $1`,
       [email]
@@ -167,6 +170,7 @@ const loginUser = async (req, res) => {
       {
         userId: user.id,
         email: user.email,
+        role: user.role,
       },
       process.env.JWT_SECRET,
       {
@@ -183,6 +187,7 @@ const loginUser = async (req, res) => {
           firstName: user.first_name,
           lastName: user.last_name,
           email: user.email,
+          role: user.role,
         },
       },
       message: "Login successful",
