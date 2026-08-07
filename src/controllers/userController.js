@@ -46,6 +46,54 @@ const getUsers = async (req, res) => {
   }
 };
 
+const getMyProfile = async (req, res) => {
+  const userId = req.user.userId;
+  try {
+    const result = await pool.query(`
+      SELECT
+        u.id,
+        u.first_name,
+        u.last_name,
+        u.email,
+        u.gender,
+        u.zip,
+        u.interests,
+        u.role,
+        u.profile_picture,
+        u.created_at,
+        u.country_id,
+    u.state_id,
+    u.city_id,
+        c.name AS country,
+        s.name AS state,
+        ci.name AS city
+      FROM users u
+      LEFT JOIN countries c ON u.country_id = c.id
+      LEFT JOIN states s ON u.state_id = s.id
+      LEFT JOIN cities ci ON u.city_id = ci.id
+      WHERE u.id=$1
+    `,
+   [userId]
+  );
+
+    res.status(200).json({
+      success: true,
+      data: result.rows[0],
+      message: "Users fetched successfully",
+      errors: [],
+    });
+  } catch (error) {
+    console.error("Get users error:", error);
+
+    res.status(500).json({
+      success: false,
+      data: null,
+      message: "Failed to fetch users",
+      errors: [],
+    });
+  }
+};
+
 const updateUser = async (req, res) => {
   try {
     const { id } = req.params;
@@ -196,6 +244,88 @@ const updateUserRole = async (req, res) => {
   }
 };
 
+const updateMyProfile = async (req, res) => {
+  try {
+    const userId = req.user.userId;
+
+    const {
+      firstName,
+      lastName,
+      gender,
+      country,
+      state,
+      city,
+      zip,
+      interests,
+    } = req.body;
+
+    const result = await pool.query(
+      `UPDATE users
+       SET
+         first_name = $1,
+         last_name = $2,
+         gender = $3,
+         country_id = $4,
+         state_id = $5,
+         city_id = $6,
+         zip = $7,
+         interests = $8,
+         updated_at = NOW()
+       WHERE id = $9
+       RETURNING
+         id,
+         first_name,
+         last_name,
+         email,
+         gender,
+         country_id,
+         state_id,
+         city_id,
+         zip,
+         interests,
+         role,
+         profile_picture,
+         updated_at`,
+      [
+        firstName,
+        lastName,
+        gender,
+        country,
+        state,
+        city,
+        zip || null,
+        interests || [],
+        userId,
+      ]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        data: null,
+        message: "User not found",
+        errors: [],
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      data: result.rows[0],
+      message: "Profile updated successfully",
+      errors: [],
+    });
+  } catch (error) {
+    console.error("Update profile error:", error);
+
+    return res.status(500).json({
+      success: false,
+      data: null,
+      message: "Failed to update profile",
+      errors: ["Internal server error"],
+    });
+  }
+};
+
 const resetUserPassword = async (req, res) => {
   try {
     const { id } = req.params;
@@ -321,8 +451,10 @@ const deleteUser = async (req, res) => {
 
 module.exports = {
   getUsers,
+  getMyProfile,
   updateUser,
   updateUserRole,
+  updateMyProfile,
   resetUserPassword,
   deleteUser
 };

@@ -5,6 +5,7 @@ const cors = require("cors");
 const locationRoutes = require('./routes/locationRoutes')
 const authRoutes =require('./routes/authRoutes')
 const userRoutes = require('./routes/userRoutes')
+const dashboardRoutes = require('./routes/dashboardRoutes')
 const pool = require("./config/db");
 
 const app = express();
@@ -14,6 +15,7 @@ app.use(express.json());
 app.use('/api/locations', locationRoutes)
 app.use('/api/auth',authRoutes)
 app.use('/api/users', userRoutes)
+app.use("/api/dashboard", dashboardRoutes);
 app.get("/", (req, res) => {
   res.json({
     success: true,
