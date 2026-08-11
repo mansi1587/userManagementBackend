@@ -1,69 +1,85 @@
-
----
-
-# Backend — `README.md`
-
-```markdown
 # User Management System - Backend
 
-REST API backend for the User Management System built with Node.js, Express, and PostgreSQL.
-
-The backend provides authentication, user registration, location management, password reset, user management, and protected APIs.
-
----
+REST API backend built with Node.js, Express.js, and PostgreSQL.
 
 ## Tech Stack
 
 - Node.js
 - Express.js
 - PostgreSQL
-- pg
+- JWT
 - bcrypt
-- JSON Web Token (JWT)
+- Multer
+- pg
 - dotenv
 - CORS
-- Nodemon
-
----
 
 ## Features
 
-### Authentication
-
-- User Registration
-- User Login
+- User registration and login
 - JWT authentication
-- Protected APIs
-- Logout handled through frontend token removal
+- Password reset
+- Role-based access control (Admin/User)
+- User management
+- Admin and User dashboards
+- Server-side pagination, search, sorting and filtering
+- Audit logging
+- Profile picture upload and validation
+- Location management
+- Last login tracking
+- Database indexing for optimized queries
 
-### Password Security
+## Main APIs
 
-- Password hashing using bcrypt
-- Password validation
-- Forgot Password flow
-- Reset password token generation
-- Token hashing before storing in database
-- Token expiration
-- One-time password reset token
-- Reset token invalidation after successful password reset
+### Authentication
+- `POST /api/auth/register`
+- `POST /api/auth/login`
+- Password reset APIs
 
-### User Management
+### Users
+- `GET /api/users`
+- `GET /api/users/:id`
+- `PUT /api/users/:id`
+- `DELETE /api/users/:id`
 
-- Get all users
-- Get user details
-- Update user
-- Delete user
-- Reset user password
+### Dashboard
+- `GET /api/dashboard/admin` — Admin dashboard
 
-### Location Management
+### Audit Log
+- `GET /api/audit-log`
 
-Location data is stored in PostgreSQL.
+### Locations
+- `GET /api/locations/countries`
+- `GET /api/locations/states/:countryId`
+- `GET /api/locations/cities/:stateId`
 
-Available APIs:
+## Database
 
-```text
-GET /api/locations/countries
+PostgreSQL is used for storing users, locations, and audit logs.
 
-GET /api/locations/states/:countryId
+Indexes are added for frequently searched, filtered and sorted user fields.
 
-GET /api/locations/cities/:stateId
+## Environment Variables
+
+Create a `.env` file:
+
+```env
+PORT=5000
+DATABASE_URL=your_database_url
+JWT_SECRET=your_jwt_secret
+
+Run Locally
+npm install
+npm run dev
+
+The server runs on:
+
+http://localhost:5000
+Phase 2 Additions
+Role-based access control
+Admin and User dashboards
+Server-side pagination, search, sorting and filtering
+Audit logging
+Profile picture handling
+Database indexing
+

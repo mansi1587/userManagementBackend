@@ -54,6 +54,35 @@ const getStatesByCountry = async (req, res) => {
   }
 };
 
+const getAllStates = async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT
+        id,
+        name,
+        country_id
+      FROM states
+      ORDER BY name
+    `);
+
+    return res.status(200).json({
+      success: true,
+      data: result.rows,
+      message: "All states fetched successfully",
+      errors: [],
+    });
+  } catch (error) {
+    console.error("Error fetching all states:", error);
+
+    return res.status(500).json({
+      success: false,
+      data: [],
+      message: "Failed to fetch states",
+      errors: ["Internal server error"],
+    });
+  }
+};
+
 const getCitiesByState = async (req, res) => {
   try {
     const { stateId } = req.params;
@@ -87,5 +116,6 @@ const getCitiesByState = async (req, res) => {
 module.exports = {
   getCountries,
   getStatesByCountry,
+  getAllStates,
   getCitiesByState,
 };

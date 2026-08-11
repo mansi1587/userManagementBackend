@@ -2,6 +2,7 @@ const crypto = require("crypto");
 const bcrypt = require("bcrypt");
 const pool = require("../config/db");
 const jwt = require("jsonwebtoken");
+const { logAudit } = require("../services/auditService");
 
 const registerUser = async (req, res) => {
   try {
@@ -40,7 +41,7 @@ const registerUser = async (req, res) => {
     // Check if email already exists
     const existingUser = await pool.query(
       "SELECT id FROM users WHERE email = $1",
-      [email]
+      [email],
     );
 
     if (existingUser.rows.length > 0) {
@@ -90,14 +91,22 @@ const registerUser = async (req, res) => {
         gender,
         email,
         hashedPassword,
-        'User',
+        "User",
         country,
         state,
         city,
         zip || null,
         interests || [],
-      ]
+      ],
     );
+
+    await logAudit({
+      actionType: "User Registered",
+      performedBy: result.rows[0].id,
+      targetUser: result.rows[0].id,
+      details: `New user registered: ${result.rows[0].first_name} ${result.rows[0].last_name} (${result.rows[0].email})`,
+      ipAddress: req.ip,
+    });
 
     return res.status(201).json({
       success: true,
@@ -133,10 +142,10 @@ const loginUser = async (req, res) => {
 
     // Find user by email
     const result = await pool.query(
-      `SELECT id, first_name, last_name, email, password, role
+      `SELECT id, first_name, last_name, email, password, role,last_login_at
        FROM users
        WHERE email = $1`,
-      [email]
+      [email],
     );
 
     if (result.rows.length === 0) {
@@ -151,10 +160,7 @@ const loginUser = async (req, res) => {
     const user = result.rows[0];
 
     // Compare entered password with hashed password
-    const isPasswordValid = await bcrypt.compare(
-      password,
-      user.password
-    );
+    const isPasswordValid = await bcrypt.compare(password, user.password);
 
     if (!isPasswordValid) {
       return res.status(401).json({
@@ -164,6 +170,26 @@ const loginUser = async (req, res) => {
         errors: [],
       });
     }
+    // Update last login
+    const loginResult = await pool.query(
+      `
+  UPDATE users
+  SET last_login_at = NOW()
+  WHERE id = $1
+  RETURNING last_login_at
+  `,
+      [user.id],
+    );
+
+    const lastLoginAt = loginResult.rows[0].last_login_at;
+
+    await logAudit({
+      actionType: "Login",
+      performedBy: user.id,
+      targetUser: user.id,
+      details: "User logged in successfully",
+      ipAddress: req.ip,
+    });
 
     // Create JWT
     const token = jwt.sign(
@@ -175,7 +201,7 @@ const loginUser = async (req, res) => {
       process.env.JWT_SECRET,
       {
         expiresIn: "5h",
-      }
+      },
     );
 
     return res.status(200).json({
@@ -188,6 +214,7 @@ const loginUser = async (req, res) => {
           lastName: user.last_name,
           email: user.email,
           role: user.role,
+          lastLoginAt,
         },
       },
       message: "Login successful",
@@ -220,7 +247,7 @@ const forgotPassword = async (req, res) => {
 
     const result = await pool.query(
       "SELECT id, email FROM users WHERE email = $1",
-      [email]
+      [email],
     );
 
     if (result.rows.length === 0) {
@@ -249,8 +276,16 @@ const forgotPassword = async (req, res) => {
        SET reset_password_token_hash = $1,
            reset_password_token_expires_at = $2
        WHERE id = $3`,
-      [tokenHash, expiresAt, result.rows[0].id]
+      [tokenHash, expiresAt, result.rows[0].id],
     );
+
+    await logAudit({
+  actionType: "Password Reset Requested",
+  performedBy: result.rows[0].id,
+  targetUser: result.rows[0].id,
+  details: "Password reset link requested",
+  ipAddress: req.ip,
+});
 
     // Simulate email delivery
     const resetLink = `http://localhost:5173/reset-password?token=${resetToken}`;
@@ -303,17 +338,14 @@ const resetPassword = async (req, res) => {
     }
 
     // Hash incoming token
-    const tokenHash = crypto
-      .createHash("sha256")
-      .update(token)
-      .digest("hex");
+    const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
 
     const result = await pool.query(
       `SELECT id
        FROM users
        WHERE reset_password_token_hash = $1
        AND reset_password_token_expires_at > NOW()`,
-      [tokenHash]
+      [tokenHash],
     );
 
     if (result.rows.length === 0) {
@@ -337,8 +369,16 @@ const resetPassword = async (req, res) => {
            reset_password_token_hash = NULL,
            reset_password_token_expires_at = NULL
        WHERE id = $2`,
-      [hashedPassword, userId]
+      [hashedPassword, userId],
     );
+
+    await logAudit({
+  actionType: "Password Reset",
+  performedBy: userId,
+  targetUser: userId,
+  details: "User successfully reset their password",
+  ipAddress: req.ip,
+});
 
     return res.status(200).json({
       success: true,
@@ -362,5 +402,5 @@ module.exports = {
   registerUser,
   loginUser,
   forgotPassword,
-  resetPassword
+  resetPassword,
 };

@@ -6,16 +6,24 @@ const locationRoutes = require('./routes/locationRoutes')
 const authRoutes =require('./routes/authRoutes')
 const userRoutes = require('./routes/userRoutes')
 const dashboardRoutes = require('./routes/dashboardRoutes')
+const auditRoutes = require('./routes/auditRoutes')
 const pool = require("./config/db");
-
+const path = require('path')
 const app = express();
 
+app.use(
+  "/uploads",
+  express.static(
+    path.join(__dirname, "../uploads")
+  )
+);
 app.use(cors());
 app.use(express.json());
 app.use('/api/locations', locationRoutes)
 app.use('/api/auth',authRoutes)
 app.use('/api/users', userRoutes)
 app.use("/api/dashboard", dashboardRoutes);
+app.use('/api/audit-log', auditRoutes)
 app.get("/", (req, res) => {
   res.json({
     success: true,

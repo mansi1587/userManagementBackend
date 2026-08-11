@@ -10,6 +10,9 @@ const {
 } = require("../controllers/userController");
 const authMiddleware = require("../middleware/authMiddleware");
 const authorizeRoles = require("../middleware/authorizeRoles");
+const {
+  uploadProfilePicture,
+} = require("../middleware/uploadMiddleware");
 
 const router = express.Router();
 
@@ -22,9 +25,16 @@ router.get(
 router.put(
   "/profile",
   authMiddleware,
+  uploadProfilePicture.single("profile_picture"),
   updateMyProfile
 );
-router.put("/:id", authMiddleware, authorizeRoles("Admin"), updateUser);
+router.put(
+  "/:id",
+  authMiddleware,
+  authorizeRoles("Admin"),
+  uploadProfilePicture.single("profile_picture"),
+  updateUser
+);
 router.put(
     "/:id/role",
     authMiddleware,
