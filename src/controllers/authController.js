@@ -56,6 +56,24 @@ const registerUser = async (req, res) => {
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
 
+
+    let userInterests = [];
+
+    if (interests) {
+      try {
+        userInterests = JSON.parse(interests);
+      } catch (error) {
+        userInterests = [];
+      }
+    }
+
+
+      let profilePicture = null;
+
+    if (req.file) {
+      profilePicture = `/uploads/profile-pictures/${req.file.filename}`;
+    }
+
     // Create user
     const result = await pool.query(
       `INSERT INTO users (
@@ -69,9 +87,10 @@ const registerUser = async (req, res) => {
         state_id,
         city_id,
         zip,
-        interests
+        interests,
+        profile_picture
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
       RETURNING
         id,
         first_name,
@@ -84,6 +103,7 @@ const registerUser = async (req, res) => {
         city_id,
         zip,
         interests,
+        profile_picture,
         created_at`,
       [
         firstName,
@@ -96,7 +116,8 @@ const registerUser = async (req, res) => {
         state,
         city,
         zip || null,
-        interests || [],
+         userInterests,
+        profilePicture,
       ],
     );
 
