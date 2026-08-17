@@ -4,7 +4,7 @@ const crypto = require("crypto");
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, "uploads/profile-pictures");
+    cb(null, process.env.UPLOAD_FOLDER);
   },
 
   filename: (req, file, cb) => {
