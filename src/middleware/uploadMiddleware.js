@@ -2,9 +2,22 @@ const multer = require("multer");
 const path = require("path");
 const crypto = require("crypto");
 
+
+if (!process.env.PROFILE_PICTURES_UPLOAD_FOLDER) {
+  throw new Error(
+    "PROFILE_PICTURES_UPLOAD_FOLDER is not configured in .env"
+  );
+}
+
+if (!process.env.DOCUMENTS_UPLOAD_FOLDER) {
+  throw new Error(
+    "DOCUMENTS_UPLOAD_FOLDER is not configured in .env"
+  );
+}
+ 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, process.env.UPLOAD_FOLDER);
+    cb(null, process.env.PROFILE_PICTURES_UPLOAD_FOLDER);
   },
 
   filename: (req, file, cb) => {
@@ -42,6 +55,51 @@ const uploadProfilePicture = multer({
   fileFilter,
 });
 
+// ===============================
+// PDF Document Upload
+// ===============================
+const documentStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, process.env.DOCUMENTS_UPLOAD_FOLDER);
+  },
+
+  filename: (req, file, cb) => {
+    const extension = path.extname(file.originalname).toLowerCase();
+
+    const uniqueName =
+      `${crypto.randomUUID()}${extension}`;
+
+    cb(null, uniqueName);
+  },
+});
+
+const documentFilter = (req, file, cb) => {
+  console.log("Original name:", file.originalname);
+  console.log("MIME type:", file.mimetype);
+
+  const extension = path.extname(file.originalname).toLowerCase();
+
+  if (
+    extension !== ".pdf" ||
+    !["application/pdf", "application/octet-stream"].includes(file.mimetype)
+  ) {
+    return cb(new Error("Only PDF files are allowed"));
+  }
+
+  cb(null, true);
+};
+
+const uploadPDF = multer({
+  storage: documentStorage,
+
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 10 MB
+  },
+
+  fileFilter: documentFilter,
+});
+
 module.exports = {
   uploadProfilePicture,
+  uploadPDF
 };

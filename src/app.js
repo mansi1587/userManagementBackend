@@ -7,6 +7,8 @@ const authRoutes =require('./routes/authRoutes')
 const userRoutes = require('./routes/userRoutes')
 const dashboardRoutes = require('./routes/dashboardRoutes')
 const auditRoutes = require('./routes/auditRoutes')
+const documentRoutes = require("./routes/documentRoutes");
+const chatRoutes = require("./routes/chatRoutes");
 const pool = require("./config/db");
 const path = require('path')
 const app = express();
@@ -24,6 +26,8 @@ app.use('/api/auth',authRoutes)
 app.use('/api/users', userRoutes)
 app.use("/api/dashboard", dashboardRoutes);
 app.use('/api/audit-log', auditRoutes)
+app.use("/api/documents", documentRoutes);
+app.use("/api/chat", chatRoutes);
 app.get("/", (req, res) => {
   res.json({
     success: true,
