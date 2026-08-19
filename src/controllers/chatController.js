@@ -4,6 +4,7 @@ const {
   createQueryEmbedding,
 } = require("../services/embeddingService");
 
+const { searchSimilarChunks } = require("../services/retrievalService");
 const {
   generateAnswer,
 } = require("../services/llmService");
@@ -67,7 +68,11 @@ const askQuestion = async (req, res) => {
     const queryVector = await createQueryEmbedding(
       trimmedQuestion
     );
-
+    if (!queryVector || queryVector.length === 0) {
+      const error = new Error("Query embedding is empty.");
+      error.code = "EMPTY_QUERY_EMBEDDING";
+      throw error;
+    }
     console.log(
       "Query vector dimensions:",
       queryVector.length
@@ -84,29 +89,36 @@ const askQuestion = async (req, res) => {
       throw error;
     }
 
-    const vectorString = `[${queryVector.join(",")}]`;
+    // const vectorString = `[${queryVector.join(",")}]`;
 
     // -----------------------------------------
     // Step 3: Search selected document only
     // -----------------------------------------
 
-    const result = await pool.query(
-      `
-      SELECT
-        id,
-        chunk_index,
-        chunk_text,
-        metadata,
-        embedding <=> $1::vector AS distance
-      FROM document_chunks
-      WHERE document_id = $2
-      ORDER BY embedding <=> $1::vector
-      LIMIT 3
-      `,
-      [vectorString, documentId]
+    // const result = await pool.query(
+    //   `
+    //   SELECT
+    //     id,
+    //     chunk_index,
+    //     chunk_text,
+    //     metadata,
+    //     embedding <=> $1::vector AS distance
+    //   FROM document_chunks
+    //   WHERE document_id = $2
+    //   ORDER BY embedding <=> $1::vector
+    //   LIMIT 3
+    //   `,
+    //   [vectorString, documentId]
+    // );
+
+    const result = await searchSimilarChunks(
+      queryVector,
+      documentId,
+      3
     );
 
-    if (result.rows.length === 0) {
+
+    if (result.length === 0) {
       return res.status(404).json({
         success: false,
         data: null,
@@ -116,14 +128,14 @@ const askQuestion = async (req, res) => {
     }
 
     console.log(
-      `Retrieved chunks: ${result.rows.length}`
+      `Retrieved chunks: ${result.length}`
     );
 
     // -----------------------------------------
     // Step 4: Build context
     // -----------------------------------------
 
-    const context = result.rows
+    const context = result
       .map((row, index) => {
         return `--- Document Chunk ${index + 1} ---\n${row.chunk_text}`;
       })
@@ -169,7 +181,7 @@ const askQuestion = async (req, res) => {
 
     if (
       error.code ===
-        "QUERY_EMBEDDING_GENERATION_FAILED" ||
+      "QUERY_EMBEDDING_GENERATION_FAILED" ||
       error.code === "EMPTY_QUERY_EMBEDDING"
     ) {
       return res.status(503).json({
